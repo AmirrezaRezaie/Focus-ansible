@@ -1,0 +1,41 @@
+- name: Check supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family in ["Debian", "RedHat"]
+    fail_msg: "Unsupported OS family: {{ ansible_facts.os_family }}. Only Debian/RedHat are supported."
+
+- name: Install Docker on Debian-based systems
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Docker on RedHat-based systems
+  ansible.builtin.include_tasks: redhat.yml
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Configure Docker daemon
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{{ docker_daemon_config | to_nice_json }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+  when: docker_users | length > 0
+
+- name: Ensure docker service is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true

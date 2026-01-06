@@ -1,0 +1,32 @@
+- name: Bootstrap python on target if missing
+  hosts: docker_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Ensure python3 is installed
+      raw: |
+        if command -v python3 >/dev/null 2>&1; then
+          exit 0
+        fi
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get update -y && apt-get install -y python3
+          exit 0
+        fi
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y python3
+          exit 0
+        fi
+        if command -v yum >/dev/null 2>&1; then
+          yum install -y python3
+          exit 0
+        fi
+        echo "No supported package manager found to install python3" >&2
+        exit 1
+      changed_when: false
+
+- name: Install and configure Docker
+  hosts: docker_hosts
+  gather_facts: true
+  become: true
+  roles:
+    - docker

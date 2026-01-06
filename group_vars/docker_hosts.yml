@@ -1,0 +1,16 @@
+# Users to add to the docker group
+# Example:
+# docker_users:
+#   - ubuntu
+#   - youruser
+
+docker_users: []
+
+# Docker daemon configuration
+# https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file
+
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
