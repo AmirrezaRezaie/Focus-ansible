@@ -2,5 +2,6 @@
   hosts: docker_hosts
   become: true
   roles:
-    - docker
+    - role: docker
+      when: install_docker | default(false)
     - app_deploy

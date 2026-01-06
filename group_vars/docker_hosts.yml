@@ -24,3 +24,6 @@ compose_project_name: ""
 compose_build: true
 compose_pull: false
 compose_up_args: "-d"
+
+# Set true for first-time host bootstrap
+install_docker: false
