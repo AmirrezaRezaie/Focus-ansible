@@ -1,4 +1,4 @@
-nginx_site_name: my-app
-nginx_server_name: example.com
+nginx_site_name: goalixa
+nginx_server_name: goalixa.com
 nginx_upstream_host: 127.0.0.1
-nginx_upstream_port: 8080
+nginx_upstream_port: 5000
