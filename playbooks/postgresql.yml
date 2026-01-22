@@ -1,0 +1,5 @@
+- name: Deploy PostgreSQL on Docker hosts
+  hosts: docker_hosts
+  become: true
+  roles:
+    - postgresql

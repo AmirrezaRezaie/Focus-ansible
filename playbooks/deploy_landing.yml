@@ -1,0 +1,5 @@
+- name: Deploy landing app with Docker Compose
+  hosts: docker_hosts
+  become: true
+  roles:
+    - app_landing

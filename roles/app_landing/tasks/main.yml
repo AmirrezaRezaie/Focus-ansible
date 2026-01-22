@@ -1,0 +1,41 @@
+---
+- name: Deploy Goalixa Landing Page
+  hosts: docker_hosts
+  become: true
+  vars:
+    # Path to landing project on your Mac (control machine)
+    local_landing_path: "{{ app_src }}"
+    # Path on the VM where we copy the project
+    remote_landing_path: /home/{{ ansible_user }}/goalixa-landing
+  tasks:
+
+    - name: Ensure landing directory exists on VM
+      file:
+        path: "{{ remote_landing_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy landing project to VM
+      copy:
+        src: "{{ local_landing_path }}/"
+        dest: "{{ remote_landing_path }}/"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Ensure Docker Compose is installed
+      command: docker compose version
+      register: compose_check
+      ignore_errors: true
+
+    - name: Install Docker Compose if missing
+      shell: |
+        sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+      when: compose_check.failed
+
+    - name: Deploy landing container with Docker Compose
+      community.docker.docker_compose:
+        project_src: "{{ remote_landing_path }}"
+        state: present
