@@ -1,4 +1,4 @@
-app_src: "/Users/snapp/Desktop/projects/Focus"
+app_src: "/Users/snapp/Desktop/projects/goalixa"
 app_dest: "/opt/focus"
 compose_file: "docker-compose.yml"
 compose_project_name: ""

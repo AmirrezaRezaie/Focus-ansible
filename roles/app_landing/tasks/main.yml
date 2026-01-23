@@ -1,41 +1,60 @@
----
-- name: Deploy Goalixa Landing Page
-  hosts: docker_hosts
-  become: true
-  vars:
-    # Path to landing project on your Mac (control machine)
-    local_landing_path: "{{ app_src }}"
-    # Path on the VM where we copy the project
-    remote_landing_path: /home/{{ ansible_user }}/goalixa-landing
-  tasks:
+- name: Ensure landing directory exists on VM
+  ansible.builtin.file:
+    path: "{{ app_dest }}"
+    state: directory
+    mode: "0755"
 
-    - name: Ensure landing directory exists on VM
-      file:
-        path: "{{ remote_landing_path }}"
-        state: directory
-        mode: "0755"
+- name: Check stack.yml exists on control machine
+  ansible.builtin.stat:
+    path: "{{ app_src }}/stack.yml"
+  delegate_to: localhost
+  become: false
+  register: stack_stat
 
-    - name: Copy landing project to VM
-      copy:
-        src: "{{ local_landing_path }}/"
-        dest: "{{ remote_landing_path }}/"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-      delegate_to: localhost
+- name: Fail if stack.yml is missing on control machine
+  ansible.builtin.fail:
+    msg: "stack.yml not found: {{ app_src }}/stack.yml"
+  when: not stack_stat.stat.exists
+  delegate_to: localhost
+  become: false
 
-    - name: Ensure Docker Compose is installed
-      command: docker compose version
-      register: compose_check
-      ignore_errors: true
+- name: Copy stack.yml to VM
+  ansible.builtin.copy:
+    src: "{{ app_src }}/stack.yml"
+    dest: "{{ app_dest }}/stack.yml"
+    mode: "0644"
 
-    - name: Install Docker Compose if missing
-      shell: |
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-      when: compose_check.failed
+- name: Ensure Docker Swarm is active
+  ansible.builtin.command: docker info --format '{{ "{{" }} .Swarm.LocalNodeState {{ "}}" }}'
+  register: swarm_state
+  changed_when: false
 
-    - name: Deploy landing container with Docker Compose
-      community.docker.docker_compose:
-        project_src: "{{ remote_landing_path }}"
-        state: present
+- name: Fail if swarm is not active
+  ansible.builtin.fail:
+    msg: "Docker Swarm is not active on this node. Run: docker swarm init --advertise-addr <SERVER_IP>"
+  when: swarm_state.stdout != "active"
+
+- name: Ensure overlay network exists (goalixa_net)
+  ansible.builtin.command: docker network create --driver overlay --attachable goalixa_net
+  register: net_create
+  changed_when: net_create.rc == 0
+  failed_when: net_create.rc != 0 and ("already exists" not in (net_create.stderr | lower))
+
+# Deploy stack (resolve image so latest update actually applies)
+- name: Deploy landing stack
+  ansible.builtin.command: docker stack deploy --resolve-image always -c "{{ app_dest }}/stack.yml" goalixa
+  register: deploy_out
+  changed_when: true
+
+- name: Force update landing service
+  ansible.builtin.command: docker service update --force goalixa_landing
+  changed_when: true
+
+- name: Show stack services
+  ansible.builtin.command: docker stack services goalixa
+  register: stack_services
+  changed_when: false
+
+- name: Print stack services
+  ansible.builtin.debug:
+    var: stack_services.stdout_lines

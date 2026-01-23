@@ -1,1 +1,3 @@
 app_src: "/Users/snapp/Desktop/projects/goalixa-landing"
+app_dest: "/opt/goalixa-swarm" 
+stack_name: "goalixa"
