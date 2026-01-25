@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  auth:
+    image: ghcr.io/amirrezarezaie/goalixa-auth:latest
+    networks:
+      - goalixa_net
+
+    environment:
+      AUTH_COOKIE_SECURE: "1"
+      AUTH_COOKIE_NAME: "goalixa_auth"
+
+    secrets:
+      - AUTH_DATABASE_URI
+      - AUTH_SECRET_KEY
+      - AUTH_JWT_SECRET
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - GOOGLE_REDIRECT_URI
+      - GOALIXA_APP_URL
+
+    ports:
+      - "8083:5001"
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+secrets:
+  AUTH_DATABASE_URI:
+    external: true
+  AUTH_SECRET_KEY:
+    external: true
+  AUTH_JWT_SECRET:
+    external: true
+  GOOGLE_CLIENT_ID:
+    external: true
+  GOOGLE_CLIENT_SECRET:
+    external: true
+  GOOGLE_REDIRECT_URI:
+    external: true
+  GOALIXA_APP_URL:
+    external: true
+
+networks:
+  goalixa_net:
+    external: true

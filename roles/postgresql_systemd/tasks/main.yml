@@ -32,36 +32,32 @@
     delay: 2
     timeout: 30
 
-- name: Find PostgreSQL socket file
-  find:
-    paths: "{{ postgres_socket_search_paths }}"
-    patterns: ".s.PGSQL.5432"
-    file_type: any
-  register: postgres_socket_find
-
-- name: Check socket candidates
-  stat:
-    path: "{{ item.path }}"
-  loop: "{{ postgres_socket_find.files }}"
-  register: postgres_socket_candidates
+- name: Locate PostgreSQL socket file
+  shell: |
+    set -e
+    for dir in {{ postgres_socket_search_paths | map('quote') | join(' ') }}; do
+      if [ -d "$dir" ]; then
+        found=$(find "$dir" -type s -name ".s.PGSQL.5432" -print -quit 2>/dev/null || true)
+        if [ -n "$found" ]; then
+          echo "$found"
+          exit 0
+        fi
+      fi
+    done
+    exit 1
+  register: postgres_socket_cmd
+  changed_when: false
+  failed_when: false
 
 - name: Use detected PostgreSQL socket directory when available
   set_fact:
-    postgres_unix_socket: >-
-      {{
-        (postgres_socket_candidates.results
-         | selectattr('stat.issock')
-         | map(attribute='stat.path')
-         | map('dirname')
-         | list
-         | first)
-        | default(postgres_unix_socket)
-      }}
+    postgres_unix_socket: "{{ postgres_socket_cmd.stdout | trim | dirname }}"
+  when: postgres_socket_cmd.stdout | trim | length > 0
 
 - name: Fail if PostgreSQL socket is missing
   fail:
     msg: "PostgreSQL socket not found in {{ postgres_socket_search_paths }}; verify the service is running."
-  when: postgres_socket_candidates.results | selectattr('stat.issock') | list | length == 0
+  when: postgres_socket_cmd.stdout | trim | length == 0
 
 - name: Ensure PostgreSQL user exists
   community.postgresql.postgresql_user:
